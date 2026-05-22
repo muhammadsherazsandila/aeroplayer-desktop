@@ -1,0 +1,93 @@
+name: AeroPlayer CI/CD Auto-Updater Release Pipeline
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'updater.json'
+      - 'README.md'
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Rust Stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Node Dependencies
+        run: npm ci || npm install
+
+      - name: Build Tauri Desktop App & Sign Bundle
+        run: npm run tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+
+      - name: Get Version from tauri.conf.json
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.APP_VERSION }}
+          name: AeroPlayer v${{ env.APP_VERSION }}
+          draft: false
+          prerelease: false
+          body: |
+            ## AeroPlayer v${{ env.APP_VERSION }} - Premium Desktop Release
+            
+            Welcome to the new release of AeroPlayer!
+            
+            ### What's New
+            - **True Single-Screen Desktop Layout**: Perfect glassmorphic side-by-side grid, optimized for zero vertical scrollbars.
+            - **Interactive Onboarding Tour**: Fluent step-by-step introduction for new users.
+            - **Auto-Updater Integration**: Automated updates triggered directly from this CI/CD pipeline!
+            
+            ### Automated Signature Verification
+            The build assets have been securely compiled and cryptographically signed using your Tauri signing key.
+          files: |
+            src-tauri/target/release/bundle/nsis/AeroPlayer_*_x64-setup.exe
+            src-tauri/target/release/bundle/nsis/AeroPlayer_*_x64-setup.nsis.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Auto-Updater Metadata
+        run: node scripts/updater.js
+
+      - name: Commit and Push updater.json Metadata
+        shell: bash
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add updater.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update updater.json metadata for v${{ env.APP_VERSION }} [skip ci]" && git push origin main)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

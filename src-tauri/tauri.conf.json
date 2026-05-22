@@ -33,5 +33,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJERTVERDJENzM4QUMyOEIKUldTTHdvcHpMZDNsdmRnQnpqOE1vWlJreThIR2hYNEMwbWNCS1FvOGRlZGZISWZ6eEIvMC9tSngK",
+      "endpoints": [
+        "https://raw.githubusercontent.com/muhammadsherazsandila/aeroplayer-desktop/main/updater.json"
+      ]
+    }
   }
 }
