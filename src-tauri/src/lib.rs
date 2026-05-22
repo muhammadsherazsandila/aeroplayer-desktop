@@ -72,11 +72,28 @@ fn scan_directory(dir: &PathBuf, list: &mut Vec<VideoFile>) -> Result<(), String
     Ok(())
 }
 
+async fn check_and_update(app: &tauri::AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    if let Some(update) = app.updater()?.check().await? {
+        update.download_and_install(|_chunk_received, _content_length| {}, || {}).await?;
+        app.restart();
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .setup(|app| {
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let _ = check_and_update(&handle).await;
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![greet, scan_videos])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
