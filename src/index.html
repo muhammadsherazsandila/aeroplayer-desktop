@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroPlayer - Premium Custom Video Player</title>
+    <!-- Premium Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Premium Frameless Titlebar -->
+    <div class="custom-titlebar">
+        <div class="titlebar-drag">
+            <i data-lucide="play-circle" class="titlebar-icon"></i>
+            <span class="titlebar-title">AeroPlayer Desktop</span>
+        </div>
+        <div class="titlebar-controls">
+            <button class="titlebar-btn" id="winInfoBtn" title="Take a Tour">
+                <i data-lucide="help-circle"></i>
+            </button>
+            <button class="titlebar-btn" id="winMinimizeBtn" title="Minimize">
+                <i data-lucide="minus"></i>
+            </button>
+            <button class="titlebar-btn" id="winMaximizeBtn" title="Maximize">
+                <i data-lucide="square"></i>
+            </button>
+            <button class="titlebar-btn close-btn" id="winCloseBtn" title="Close">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="glass-bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    <main class="app-container">
+        <!-- Left Column: Video Canvas -->
+        <div class="player-column">
+            <!-- Video Player Section -->
+            <section class="player-section">
+                <div class="player-card glass-panel" id="playerCard">
+                    <!-- Drop/Upload Area (visible by default, hides when video is loaded) -->
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-zone-content">
+                            <div class="icon-pulse">
+                                <i data-lucide="clapperboard" class="drop-icon"></i>
+                            </div>
+                            <h3>Load your Video File</h3>
+                            <p class="drop-instructions">Drag & drop a video file here, or click to browse from your computer.</p>
+                            <p class="drop-limitations">Supports MP4, WebM, Ogg, and other browser-supported video formats.</p>
+                            <input type="file" id="fileInput" accept="video/*" class="file-input-hidden">
+                            <button type="button" class="btn btn-primary" id="browseBtn">
+                                <i data-lucide="upload" class="btn-icon"></i>
+                                Browse Files
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Video Container -->
+                    <div class="video-wrapper hidden" id="videoWrapper">
+                        <video id="mainVideo" preload="metadata" playsinline>
+                            Your browser does not support the video tag.
+                        </video>
+
+                        <!-- Big Central Play Overlay (fades out when playing) -->
+                        <div class="video-overlay" id="videoOverlay">
+                            <button class="overlay-play-btn" id="overlayPlayBtn" aria-label="Play Video">
+                                <i data-lucide="play" class="overlay-icon"></i>
+                            </button>
+                        </div>
+
+                        <!-- Custom Floating Toast for +/- 10s Indicators -->
+                        <div class="seek-toast" id="seekToast">
+                            <i data-lucide="chevrons-right" class="toast-icon"></i>
+                            <span class="toast-text">+10s</span>
+                        </div>
+
+                        <!-- Custom Controls Overlay -->
+                        <div class="controls-overlay" id="controlsOverlay">
+                            <!-- Progress/Timeline Bar -->
+                            <div class="timeline-container" id="timelineContainer">
+                                <div class="timeline-slider-track">
+                                    <div class="timeline-progress" id="timelineProgress"></div>
+                                    <div class="timeline-hover" id="timelineHover"></div>
+                                    <div class="timeline-handle" id="timelineHandle"></div>
+                                </div>
+                            </div>
+
+                            <div class="controls-row">
+                                <!-- Left Controls: Play, Time -->
+                                <div class="controls-group left-group">
+                                    <button class="control-btn" id="playBtn" aria-label="Play/Pause">
+                                        <i data-lucide="play" class="control-icon" id="playIcon"></i>
+                                    </button>
+                                    
+                                    <div class="time-display">
+                                        <span class="time-current" id="timeCurrent">00:00</span>
+                                        <span class="time-separator">/</span>
+                                        <span class="time-total" id="timeTotal">00:00</span>
+                                    </div>
+                                </div>
+
+                                <!-- Center Controls: 10s Rewind / Forward -->
+                                <div class="controls-group center-group">
+                                    <button class="control-btn skip-btn" id="rewindBtn" aria-label="Rewind 10 Seconds" title="Rewind 10s (Left Arrow)">
+                                        <i data-lucide="rotate-ccw" class="control-icon"></i>
+                                        <span class="skip-label">10</span>
+                                    </button>
+                                    <button class="control-btn skip-btn" id="forwardBtn" aria-label="Forward 10 Seconds" title="Forward 10s (Right Arrow)">
+                                        <i data-lucide="rotate-cw" class="control-icon"></i>
+                                        <span class="skip-label">10</span>
+                                    </button>
+                                </div>
+
+                                <!-- Right Controls: Volume, Fullscreen, Eject -->
+                                <div class="controls-group right-group">
+                                    <div class="volume-container">
+                                        <button class="control-btn" id="volumeBtn" aria-label="Mute/Unmute">
+                                            <i data-lucide="volume-2" class="control-icon" id="volumeIcon"></i>
+                                        </button>
+                                        <div class="volume-slider-wrapper">
+                                            <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" class="volume-slider" aria-label="Volume">
+                                        </div>
+                                    </div>
+
+                                    <button class="control-btn" id="fullscreenBtn" aria-label="Toggle Fullscreen">
+                                        <i data-lucide="maximize" class="control-icon" id="fullscreenIcon"></i>
+                                    </button>
+
+                                    <button class="control-btn danger-hover" id="ejectBtn" aria-label="Load different video" title="Change video">
+                                        <i data-lucide="log-out" class="control-icon"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Right Column: Sidebar (Compact Control Hub) -->
+        <div class="sidebar-column">
+            <!-- Header Section -->
+            <header class="main-header" id="sidebarHeader">
+                <div class="logo">
+                    <i data-lucide="play-circle" class="logo-icon"></i>
+                    <span class="logo-text">AeroPlayer</span>
+                </div>
+                <div class="subtitle">Experience video playback refined with fluid glassmorphism.</div>
+            </header>
+
+            <!-- Demo Videos Section -->
+            <div class="demo-card glass-panel" id="sidebarDemoCard">
+                <h3>
+                    <i data-lucide="sparkles" class="section-icon text-glow-blue"></i>
+                    Quick Demo Stream
+                </h3>
+                <p>Stream stunning open-source demo videos instantly:</p>
+                <div class="demo-buttons">
+                    <button class="btn btn-secondary demo-select-btn" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4">
+                        <i data-lucide="film" class="btn-icon"></i>
+                        Sintel (Fantasy)
+                    </button>
+                    <button class="btn btn-secondary demo-select-btn" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+                        <i data-lucide="film" class="btn-icon"></i>
+                        Big Buck Bunny
+                    </button>
+                </div>
+            </div>
+
+            <!-- Shortcuts Card -->
+            <div class="shortcuts-card glass-panel" id="sidebarShortcutsCard">
+                <h3>
+                    <i data-lucide="keyboard" class="section-icon text-glow-purple"></i>
+                    Keyboard Shortcuts
+                </h3>
+                <ul class="shortcuts-list">
+                    <li>
+                        <kbd>Space</kbd>
+                        <span>Toggle Play / Pause</span>
+                    </li>
+                    <li>
+                        <kbd><i data-lucide="arrow-left" class="kbd-icon"></i></kbd>
+                        <span>Rewind 10 Seconds</span>
+                    </li>
+                    <li>
+                        <kbd><i data-lucide="arrow-right" class="kbd-icon"></i></kbd>
+                        <span>Forward 10 Seconds</span>
+                    </li>
+                    <li>
+                        <kbd>F</kbd>
+                        <span>Toggle Fullscreen</span>
+                    </li>
+                    <li>
+                        <kbd>M</kbd>
+                        <span>Toggle Mute</span>
+                    </li>
+                </ul>
+            </div>
+
+            <footer class="main-footer">
+                <p>&copy; 2026 AeroPlayer. Crafted with absolute precision.</p>
+            </footer>
+        </div>
+    </main>
+
+    <!-- Interactive Onboarding Tour Overlay -->
+    <div class="tour-overlay hidden" id="tourOverlay"></div>
+    <div class="tour-tooltip hidden" id="tourTooltip">
+        <div class="tour-tooltip-arrow"></div>
+        <div class="tour-tooltip-content">
+            <h4 id="tourTitle">Welcome to AeroPlayer</h4>
+            <p id="tourText">Let's take a quick look at the features.</p>
+            <div class="tour-dots" id="tourDots"></div>
+            <div class="tour-tooltip-footer">
+                <button class="btn btn-secondary tour-btn-skip" id="tourSkipBtn">Skip</button>
+                <div class="tour-tooltip-nav">
+                    <button class="btn btn-secondary tour-btn-nav" id="tourPrevBtn" title="Previous">
+                        <i data-lucide="chevron-left"></i>
+                    </button>
+                    <button class="btn btn-primary tour-btn-nav" id="tourNextBtn">
+                        <span>Next</span>
+                        <i data-lucide="chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
