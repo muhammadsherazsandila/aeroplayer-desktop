@@ -40,9 +40,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Titlebar Dropdowns
     const shortcutsDropdown = document.getElementById('shortcutsDropdown');
     const streamsDropdown = document.getElementById('streamsDropdown');
+    const devDropdown = document.getElementById('devDropdown');
     const winPlaylistToggleBtn = document.getElementById('winPlaylistToggleBtn');
     const winStreamsBtn = document.getElementById('winStreamsBtn');
     const winShortcutsBtn = document.getElementById('winShortcutsBtn');
+    const winDevBtn = document.getElementById('winDevBtn');
     const winInfoBtn = document.getElementById('winInfoBtn');
 
     // State Variables
@@ -72,7 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             // Absolute local paths in Tauri are converted to the high-performance local asset:// protocol
             if (isTauri && typeof source === 'string' && !source.startsWith('http://') && !source.startsWith('https://') && !source.startsWith('blob:')) {
-                videoUrl = window.__TAURI__.core.convertFileSrc(source);
+                // Normalize Windows backslashes to forward slashes first to prevent URL protocol encoding issues
+                const normalizedPath = source.replace(/\\/g, '/');
+                videoUrl = window.__TAURI__.core.convertFileSrc(normalizedPath);
             } else {
                 videoUrl = source;
             }
@@ -281,13 +285,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Dropdowns Position & Toggle Mechanics
     // ----------------------------------------------------
     function toggleDropdown(dropdown, button) {
-        if (dropdown === shortcutsDropdown) {
-            streamsDropdown.classList.remove('visible');
-            streamsDropdown.classList.add('hidden');
-        } else {
-            shortcutsDropdown.classList.remove('visible');
-            shortcutsDropdown.classList.add('hidden');
-        }
+        // Hide all other dropdowns
+        [
+            { el: shortcutsDropdown, btn: winShortcutsBtn },
+            { el: streamsDropdown, btn: winStreamsBtn },
+            { el: devDropdown, btn: winDevBtn }
+        ].forEach(item => {
+            if (item.el && item.el !== dropdown) {
+                item.el.classList.remove('visible');
+                item.el.classList.add('hidden');
+            }
+        });
 
         const isVisible = dropdown.classList.contains('visible');
         if (isVisible) {
@@ -320,6 +328,13 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleDropdown(streamsDropdown, winStreamsBtn);
     });
 
+    if (winDevBtn) {
+        winDevBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleDropdown(devDropdown, winDevBtn);
+        });
+    }
+
     // Handle Quick Demo Select
     const demoButtons = document.querySelectorAll('.demo-select-btn');
     demoButtons.forEach(button => {
@@ -333,23 +348,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Close Dropdowns on outside click
     window.addEventListener('click', (e) => {
-        if (!shortcutsDropdown.contains(e.target) && e.target !== winShortcutsBtn && !winShortcutsBtn.contains(e.target)) {
+        if (shortcutsDropdown && !shortcutsDropdown.contains(e.target) && e.target !== winShortcutsBtn && !winShortcutsBtn.contains(e.target)) {
             shortcutsDropdown.classList.remove('visible');
             shortcutsDropdown.classList.add('hidden');
         }
-        if (!streamsDropdown.contains(e.target) && e.target !== winStreamsBtn && !winStreamsBtn.contains(e.target)) {
+        if (streamsDropdown && !streamsDropdown.contains(e.target) && e.target !== winStreamsBtn && !winStreamsBtn.contains(e.target)) {
             streamsDropdown.classList.remove('visible');
             streamsDropdown.classList.add('hidden');
+        }
+        if (devDropdown && !devDropdown.contains(e.target) && e.target !== winDevBtn && !winDevBtn.contains(e.target)) {
+            devDropdown.classList.remove('visible');
+            devDropdown.classList.add('hidden');
         }
     });
 
     // Close Dropdowns on window resize
     window.addEventListener('resize', () => {
-        if (shortcutsDropdown.classList.contains('visible')) {
+        if (shortcutsDropdown && shortcutsDropdown.classList.contains('visible')) {
             positionDropdown(winShortcutsBtn, shortcutsDropdown);
         }
-        if (streamsDropdown.classList.contains('visible')) {
+        if (streamsDropdown && streamsDropdown.classList.contains('visible')) {
             positionDropdown(winStreamsBtn, streamsDropdown);
+        }
+        if (devDropdown && devDropdown.classList.contains('visible')) {
+            positionDropdown(winDevBtn, devDropdown);
         }
     });
 
@@ -626,6 +648,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isTauri) {
         const appWindow = window.__TAURI__.window.getCurrentWindow();
         
+        // Native Fullscreen on First Launch
+        if (localStorage.getItem('aeroplayer_first_launch_done') !== 'true') {
+            appWindow.setFullscreen(true).then(() => {
+                localStorage.setItem('aeroplayer_first_launch_done', 'true');
+            }).catch(err => {
+                console.error("Failed to make window fullscreen on first launch:", err);
+            });
+        }
+
         document.getElementById('winMinimizeBtn').addEventListener('click', () => {
             appWindow.minimize();
         });
