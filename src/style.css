@@ -482,6 +482,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden; /* Prevents layout distortion and scrollbars on fullscreen transformations */
 }
 
 .video-wrapper video {
@@ -1002,23 +1003,40 @@ kbd {
 }
 
 /* Fullscreen Adjustments */
-:-webkit-full-screen .video-wrapper {
+.video-wrapper:fullscreen {
     width: 100% !important;
     height: 100% !important;
+    overflow: hidden !important;
 }
 
-:-ms-fullscreen .video-wrapper {
+.video-wrapper:-webkit-full-screen {
     width: 100% !important;
     height: 100% !important;
+    overflow: hidden !important;
 }
 
-:fullscreen .video-wrapper {
+.video-wrapper:-ms-fullscreen {
     width: 100% !important;
     height: 100% !important;
+    overflow: hidden !important;
+}
+
+:fullscreen {
+    overflow: hidden !important;
+}
+
+:-webkit-full-screen {
+    overflow: hidden !important;
+}
+
+:-ms-fullscreen {
+    overflow: hidden !important;
 }
 
 :fullscreen video {
     object-fit: contain;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 /* Onboarding Tour styles */
