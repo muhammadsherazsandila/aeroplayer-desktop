@@ -1,10 +1,10 @@
 {
   "version": "1.0.1",
   "notes": "AeroPlayer version 1.0.1 auto-update. Premium glassmorphic desktop video player experience refined.",
-  "pub_date": "2026-05-22T17:22:15.253Z",
+  "pub_date": "2026-05-22T17:46:38.452Z",
   "platforms": {
     "windows-x86_64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTTHdvcHpMZDNsdlJZQVVBbUpkWUVXN21seXFCclI0cldEZDhiOU9TNHNEWXNSeGM3Tklza2p1YlZUV2JPak04VHpic01kbndzZjBmWE9pLzVNejU3ZzBjWnZYUHo1REFnPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NDcwNTMyCWZpbGU6QWVyb1BsYXllcl8xLjAuMV94NjQtc2V0dXAuZXhlClZLVnJoc3dMRHZMb3dnVWVFbzRqbDB3VXdnQ3NHU1FGeFQ0S3hJYnMvVnA2SU5nV056bzhBVXNYOUtzYTkydmQ3UWlsTDJhRi9vUlJqdEJEOVBVNUJBPT0K",
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTTHdvcHpMZDNsdldnc0sxWE0yVE5pZUFTNUZlNzBzY3JYN0VicGppN2tzTmJyM3FUZUtWU3BKUW9VNkhhMnZTZ3RCZEhOSWN6RjdRU2V0RWJYakRMQUlaQTNZZnp0THc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzc5NDcxOTk1CWZpbGU6QWVyb1BsYXllcl8xLjAuMV94NjQtc2V0dXAuZXhlCjNvYzlGMVQxSG8xUzBEYS85a2o2ZjVjMnhxTW10dktmMW5wYkhzZkhlWStkcGQzZHBRWGh6LzlTV1c3L3dJTFVwT1Q2cHg4WTVXWWxUbzgxT2p0a0RnPT0K",
       "url": "https://github.com/muhammadsherazsandila/aeroplayer-desktop/releases/download/v1.0.1/AeroPlayer_1.0.1_x64-setup.exe"
     }
   }
