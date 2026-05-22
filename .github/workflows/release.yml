@@ -75,6 +75,7 @@ jobs:
             The build assets have been securely compiled and cryptographically signed using your Tauri signing key.
           files: |
             src-tauri/target/release/bundle/nsis/AeroPlayer_*_x64-setup.exe
+            src-tauri/target/release/bundle/updater/AeroPlayer_*_x64.zip
             src-tauri/target/release/bundle/nsis/AeroPlayer_*_x64-setup.nsis.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

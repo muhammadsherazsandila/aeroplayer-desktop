@@ -11,16 +11,21 @@ async function main() {
     console.log(`Configured Tauri App Version: ${version}`);
 
     // 2. Locate built installer / zip and signature
-    // In Tauri v2, output is in src-tauri/target/release/bundle/nsis/ or msi/
-    const bundleDir = path.join(__dirname, '..', 'src-tauri', 'target', 'release', 'bundle', 'nsis');
+    // In Tauri v2, output is in src-tauri/target/release/bundle/updater/
+    // In Tauri v1, output is in src-tauri/target/release/bundle/nsis/
+    let bundleDir = path.join(__dirname, '..', 'src-tauri', 'target', 'release', 'bundle', 'updater');
+    if (!fs.existsSync(bundleDir)) {
+      bundleDir = path.join(__dirname, '..', 'src-tauri', 'target', 'release', 'bundle', 'nsis');
+    }
     
+    console.log(`Scanning directory: ${bundleDir}`);
     if (!fs.existsSync(bundleDir)) {
       throw new Error(`Build directory not found at: ${bundleDir}`);
     }
 
     const files = fs.readdirSync(bundleDir);
-    const zipFile = files.find(f => f.endsWith('.nsis.zip'));
-    const sigFile = files.find(f => f.endsWith('.nsis.zip.sig'));
+    const zipFile = files.find(f => f.endsWith('.zip') && !f.endsWith('.sig'));
+    const sigFile = files.find(f => f.endsWith('.sig') || f.endsWith('.zip.sig'));
 
     if (!zipFile || !sigFile) {
       throw new Error(`Could not find updater zip or signature file in: ${bundleDir}`);
