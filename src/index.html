@@ -20,6 +20,16 @@
             <span class="titlebar-title">AeroPlayer Desktop</span>
         </div>
         <div class="titlebar-controls">
+            <!-- New: Playlist Toggle, Demo Streams, Shortcuts in Header -->
+            <button class="titlebar-btn" id="winPlaylistToggleBtn" title="Toggle Video Catalog">
+                <i data-lucide="folder-heart"></i>
+            </button>
+            <button class="titlebar-btn" id="winStreamsBtn" title="Quick Demo Streams">
+                <i data-lucide="sparkles"></i>
+            </button>
+            <button class="titlebar-btn" id="winShortcutsBtn" title="Keyboard Shortcuts">
+                <i data-lucide="keyboard"></i>
+            </button>
             <button class="titlebar-btn" id="winInfoBtn" title="Take a Tour">
                 <i data-lucide="help-circle"></i>
             </button>
@@ -35,34 +45,68 @@
         </div>
     </div>
 
+    <!-- Glass ambient background blobs -->
     <div class="glass-bg-blobs">
         <div class="blob blob-1"></div>
         <div class="blob blob-2"></div>
         <div class="blob blob-3"></div>
     </div>
 
+    <!-- Main single-screen viewport layout -->
     <main class="app-container">
-        <!-- Left Column: Video Canvas -->
+        
+        <!-- Collapsible Playlist/Video Catalog Drawer -->
+        <aside class="playlist-drawer" id="playlistDrawer">
+            <div class="playlist-header">
+                <h3>
+                    <i data-lucide="video" class="playlist-header-icon text-glow-blue"></i>
+                    Video Catalog
+                </h3>
+                <span class="video-count" id="videoCount">0 videos</span>
+            </div>
+            <!-- Scanned video list -->
+            <div class="playlist-items" id="playlistItems">
+                <div class="playlist-empty-state">
+                    <i data-lucide="folder-search" class="empty-icon"></i>
+                    <p>No scanned videos yet. Grant storage access to populate.</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Player Column (occupies remaining space) -->
         <div class="player-column">
-            <!-- Video Player Section -->
             <section class="player-section">
                 <div class="player-card glass-panel" id="playerCard">
-                    <!-- Drop/Upload Area (visible by default, hides when video is loaded) -->
-                    <div class="drop-zone" id="dropZone">
-                        <div class="drop-zone-content">
+                    
+                    <!-- Storage Permission & Scan Prompt -->
+                    <div class="storage-prompt" id="storagePrompt">
+                        <div class="prompt-content">
                             <div class="icon-pulse">
-                                <i data-lucide="clapperboard" class="drop-icon"></i>
+                                <i data-lucide="folder-open" class="prompt-icon text-glow-blue"></i>
                             </div>
-                            <h3>Load your Video File</h3>
-                            <p class="drop-instructions">Drag & drop a video file here, or click to browse from your computer.</p>
-                            <p class="drop-limitations">Supports MP4, WebM, Ogg, and other browser-supported video formats.</p>
-                            <input type="file" id="fileInput" accept="video/*" class="file-input-hidden">
-                            <button type="button" class="btn btn-primary" id="browseBtn">
-                                <i data-lucide="upload" class="btn-icon"></i>
-                                Browse Files
-                            </button>
+                            <h3>AeroPlayer Storage Scan</h3>
+                            <p class="prompt-text">Allow AeroPlayer to find and list all video files in your Videos and Downloads directories for quick instant playback.</p>
+                            <div class="prompt-actions">
+                                <button type="button" class="btn btn-primary" id="scanAccessBtn">
+                                    <i data-lucide="shield-check" class="btn-icon"></i>
+                                    Scan My Device Videos
+                                </button>
+                            </div>
+                            <span class="prompt-fallback-link" id="fallbackBrowseLink">Or select a single file manually</span>
                         </div>
                     </div>
+
+                    <!-- Scanning Loading View -->
+                    <div class="scanning-loader hidden" id="scanningLoader">
+                        <div class="loader-content">
+                            <div class="loading-ring"></div>
+                            <h4>Scanning Storage...</h4>
+                            <p>Analyzing folders for MP4, MKV, WebM, and other video formats.</p>
+                        </div>
+                    </div>
+
+                    <!-- Hidden file input for manual fallback browsing -->
+                    <input type="file" id="fileInput" accept="video/*" class="file-input-hidden">
 
                     <!-- Video Container -->
                     <div class="video-wrapper hidden" id="videoWrapper">
@@ -135,7 +179,7 @@
                                         <i data-lucide="maximize" class="control-icon" id="fullscreenIcon"></i>
                                     </button>
 
-                                    <button class="control-btn danger-hover" id="ejectBtn" aria-label="Load different video" title="Change video">
+                                    <button class="control-btn danger-hover" id="ejectBtn" aria-label="Scan or change video" title="Change video">
                                         <i data-lucide="log-out" class="control-icon"></i>
                                     </button>
                                 </div>
@@ -145,72 +189,59 @@
                 </div>
             </section>
         </div>
-
-        <!-- Right Column: Sidebar (Compact Control Hub) -->
-        <div class="sidebar-column">
-            <!-- Header Section -->
-            <header class="main-header" id="sidebarHeader">
-                <div class="logo">
-                    <i data-lucide="play-circle" class="logo-icon"></i>
-                    <span class="logo-text">AeroPlayer</span>
-                </div>
-                <div class="subtitle">Experience video playback refined with fluid glassmorphism.</div>
-            </header>
-
-            <!-- Demo Videos Section -->
-            <div class="demo-card glass-panel" id="sidebarDemoCard">
-                <h3>
-                    <i data-lucide="sparkles" class="section-icon text-glow-blue"></i>
-                    Quick Demo Stream
-                </h3>
-                <p>Stream stunning open-source demo videos instantly:</p>
-                <div class="demo-buttons">
-                    <button class="btn btn-secondary demo-select-btn" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4">
-                        <i data-lucide="film" class="btn-icon"></i>
-                        Sintel (Fantasy)
-                    </button>
-                    <button class="btn btn-secondary demo-select-btn" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
-                        <i data-lucide="film" class="btn-icon"></i>
-                        Big Buck Bunny
-                    </button>
-                </div>
-            </div>
-
-            <!-- Shortcuts Card -->
-            <div class="shortcuts-card glass-panel" id="sidebarShortcutsCard">
-                <h3>
-                    <i data-lucide="keyboard" class="section-icon text-glow-purple"></i>
-                    Keyboard Shortcuts
-                </h3>
-                <ul class="shortcuts-list">
-                    <li>
-                        <kbd>Space</kbd>
-                        <span>Toggle Play / Pause</span>
-                    </li>
-                    <li>
-                        <kbd><i data-lucide="arrow-left" class="kbd-icon"></i></kbd>
-                        <span>Rewind 10 Seconds</span>
-                    </li>
-                    <li>
-                        <kbd><i data-lucide="arrow-right" class="kbd-icon"></i></kbd>
-                        <span>Forward 10 Seconds</span>
-                    </li>
-                    <li>
-                        <kbd>F</kbd>
-                        <span>Toggle Fullscreen</span>
-                    </li>
-                    <li>
-                        <kbd>M</kbd>
-                        <span>Toggle Mute</span>
-                    </li>
-                </ul>
-            </div>
-
-            <footer class="main-footer">
-                <p>&copy; 2026 AeroPlayer. Crafted with absolute precision.</p>
-            </footer>
-        </div>
     </main>
+
+    <!-- Floating Glassmorphic Dropdown: Keyboard Shortcuts -->
+    <div class="floating-dropdown hidden" id="shortcutsDropdown">
+        <div class="dropdown-header">
+            <h4>
+                <i data-lucide="keyboard" class="drop-header-icon text-glow-purple"></i>
+                Keyboard Shortcuts
+            </h4>
+        </div>
+        <ul class="dropdown-list">
+            <li>
+                <kbd>Space</kbd>
+                <span>Play / Pause</span>
+            </li>
+            <li>
+                <kbd>←</kbd>
+                <span>Rewind 10 Seconds</span>
+            </li>
+            <li>
+                <kbd>→</kbd>
+                <span>Forward 10 Seconds</span>
+            </li>
+            <li>
+                <kbd>F</kbd>
+                <span>Toggle Fullscreen</span>
+            </li>
+            <li>
+                <kbd>M</kbd>
+                <span>Toggle Mute</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Floating Glassmorphic Dropdown: Demo Streams -->
+    <div class="floating-dropdown hidden" id="streamsDropdown">
+        <div class="dropdown-header">
+            <h4>
+                <i data-lucide="sparkles" class="drop-header-icon text-glow-blue"></i>
+                Quick Demo Streams
+            </h4>
+        </div>
+        <div class="dropdown-buttons">
+            <button class="dropdown-btn demo-select-btn" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4">
+                <i data-lucide="film" class="btn-icon"></i>
+                Sintel (Fantasy)
+            </button>
+            <button class="dropdown-btn demo-select-btn" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">
+                <i data-lucide="film" class="btn-icon"></i>
+                Big Buck Bunny
+            </button>
+        </div>
+    </div>
 
     <!-- Interactive Onboarding Tour Overlay -->
     <div class="tour-overlay hidden" id="tourOverlay"></div>

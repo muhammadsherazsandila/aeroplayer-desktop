@@ -22,19 +22,34 @@ document.addEventListener('DOMContentLoaded', () => {
     const fullscreenBtn = document.getElementById('fullscreenBtn');
     const fullscreenIcon = document.getElementById('fullscreenIcon');
     const ejectBtn = document.getElementById('ejectBtn');
-    const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
-    const browseBtn = document.getElementById('browseBtn');
     const videoWrapper = document.getElementById('videoWrapper');
     const videoOverlay = document.getElementById('videoOverlay');
     const overlayPlayBtn = document.getElementById('overlayPlayBtn');
     const seekToast = document.getElementById('seekToast');
-    const demoButtons = document.querySelectorAll('.demo-select-btn');
+
+    // Scanned Video Elements
+    const playlistDrawer = document.getElementById('playlistDrawer');
+    const playlistItems = document.getElementById('playlistItems');
+    const videoCount = document.getElementById('videoCount');
+    const storagePrompt = document.getElementById('storagePrompt');
+    const scanAccessBtn = document.getElementById('scanAccessBtn');
+    const fallbackBrowseLink = document.getElementById('fallbackBrowseLink');
+    const scanningLoader = document.getElementById('scanningLoader');
+
+    // Titlebar Dropdowns
+    const shortcutsDropdown = document.getElementById('shortcutsDropdown');
+    const streamsDropdown = document.getElementById('streamsDropdown');
+    const winPlaylistToggleBtn = document.getElementById('winPlaylistToggleBtn');
+    const winStreamsBtn = document.getElementById('winStreamsBtn');
+    const winShortcutsBtn = document.getElementById('winShortcutsBtn');
+    const winInfoBtn = document.getElementById('winInfoBtn');
 
     // State Variables
     let isDraggingTimeline = false;
     let idleTimer = null;
     let toastTimer = null;
+    let scannedVideosList = [];
 
     const isTauri = typeof window.__TAURI__ !== 'undefined';
 
@@ -65,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Set video src and reveal wrapper
         mainVideo.src = videoUrl;
-        dropZone.classList.add('hidden');
+        storagePrompt.classList.add('hidden');
         videoWrapper.classList.remove('hidden');
 
         // Play the video automatically
@@ -91,24 +106,20 @@ document.addEventListener('DOMContentLoaded', () => {
         mainVideo.pause();
         mainVideo.src = '';
         videoWrapper.classList.add('hidden');
-        dropZone.classList.remove('hidden');
+        storagePrompt.classList.remove('hidden');
         // Revoke object URL to free up browser memory if applicable
         if (mainVideo.src.startsWith('blob:')) {
             URL.revokeObjectURL(mainVideo.src);
         }
+        // Deselect active items
+        const items = playlistItems.querySelectorAll('.playlist-item');
+        items.forEach(item => item.classList.remove('active'));
     }
 
     // ----------------------------------------------------
-    // Dropzone File Selectors
+    // Manual file fallback selection
     // ----------------------------------------------------
-    // Click dropzone to trigger native file search
-    dropZone.addEventListener('click', (e) => {
-        if (e.target.id === 'browseBtn' || browseBtn.contains(e.target)) return; // Prevent double trigger
-        fileInput.click();
-    });
-
-    browseBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+    fallbackBrowseLink.addEventListener('click', () => {
         fileInput.click();
     });
 
@@ -118,42 +129,229 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Drag-and-drop mechanics
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        }, false);
-    });
+    ejectBtn.addEventListener('click', ejectVideo);
 
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-        }, false);
-    });
+    // ----------------------------------------------------
+    // Video Scanning & Permission Mechanics
+    // ----------------------------------------------------
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
 
-    dropZone.addEventListener('drop', (e) => {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-
-        if (files.length > 0) {
-            const file = files[0];
-            if (file.type.startsWith('video/')) {
-                loadVideoSource(file, true);
-            }
+    async function performVideoScan() {
+        if (!isTauri) {
+            // Fallback demo mock scan in standard web browsers
+            showBrowserMockScan();
+            return;
         }
+
+        storagePrompt.classList.add('hidden');
+        scanningLoader.classList.remove('hidden');
+
+        try {
+            const files = await window.__TAURI__.core.invoke("scan_videos");
+            scannedVideosList = files || [];
+            renderPlaylist(scannedVideosList);
+            
+            if (scannedVideosList.length > 0) {
+                localStorage.setItem('aeroplayer_storage_scanned', 'true');
+                playlistDrawer.classList.remove('collapsed');
+                playPlaylistItem(0);
+            } else {
+                playlistItems.innerHTML = `
+                    <div class="playlist-empty-state">
+                        <i data-lucide="folder-search" class="empty-icon"></i>
+                        <p>No video files found in your system's Videos or Downloads folders.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                storagePrompt.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error("Scanning videos failed", err);
+            storagePrompt.classList.remove('hidden');
+        } finally {
+            scanningLoader.classList.add('hidden');
+        }
+    }
+
+    function renderPlaylist(videos) {
+        playlistItems.innerHTML = '';
+        videoCount.textContent = `${videos.length} video${videos.length === 1 ? '' : 's'}`;
+
+        if (videos.length === 0) {
+            playlistItems.innerHTML = `
+                <div class="playlist-empty-state">
+                    <i data-lucide="folder-search" class="empty-icon"></i>
+                    <p>No scanned videos yet. Grant storage access to populate.</p>
+                </div>
+            `;
+            lucide.createIcons();
+            return;
+        }
+
+        videos.forEach((video, index) => {
+            const item = document.createElement('div');
+            item.className = 'playlist-item';
+            item.dataset.index = index;
+
+            const sizeFormatted = formatBytes(video.size);
+
+            item.innerHTML = `
+                <div class="playlist-item-icon">
+                    <i data-lucide="video"></i>
+                </div>
+                <div class="playlist-item-details">
+                    <div class="playlist-item-title" title="${video.name}">${video.name}</div>
+                    <div class="playlist-item-size">${sizeFormatted}</div>
+                </div>
+            `;
+
+            item.addEventListener('click', () => {
+                playPlaylistItem(index);
+            });
+
+            playlistItems.appendChild(item);
+        });
+
+        lucide.createIcons();
+    }
+
+    function playPlaylistItem(index) {
+        const items = playlistItems.querySelectorAll('.playlist-item');
+        items.forEach((item, idx) => {
+            if (idx === index) {
+                item.classList.add('active');
+            } else {
+                item.classList.remove('active');
+            }
+        });
+
+        const video = scannedVideosList[index];
+        if (video) {
+            loadVideoSource(video.path, false);
+        }
+    }
+
+    function showBrowserMockScan() {
+        storagePrompt.classList.add('hidden');
+        scanningLoader.classList.remove('hidden');
+
+        setTimeout(() => {
+            scanningLoader.classList.add('hidden');
+            scannedVideosList = [
+                {
+                    name: "Sintel (Fantasy Demo)",
+                    path: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+                    size: 34500000,
+                    extension: "mp4"
+                },
+                {
+                    name: "Big Buck Bunny (Animation Demo)",
+                    path: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    size: 26300000,
+                    extension: "mp4"
+                }
+            ];
+            renderPlaylist(scannedVideosList);
+            localStorage.setItem('aeroplayer_storage_scanned', 'true');
+            playlistDrawer.classList.remove('collapsed');
+            playPlaylistItem(0);
+        }, 1500);
+    }
+
+    scanAccessBtn.addEventListener('click', performVideoScan);
+
+    // Auto-scan if permission was previously granted
+    if (localStorage.getItem('aeroplayer_storage_scanned') === 'true') {
+        performVideoScan();
+    }
+
+    // Collapsible Drawer Toggling
+    winPlaylistToggleBtn.addEventListener('click', () => {
+        playlistDrawer.classList.toggle('collapsed');
     });
 
-    // Demo Video Selectors
+    // ----------------------------------------------------
+    // Dropdowns Position & Toggle Mechanics
+    // ----------------------------------------------------
+    function toggleDropdown(dropdown, button) {
+        if (dropdown === shortcutsDropdown) {
+            streamsDropdown.classList.remove('visible');
+            streamsDropdown.classList.add('hidden');
+        } else {
+            shortcutsDropdown.classList.remove('visible');
+            shortcutsDropdown.classList.add('hidden');
+        }
+
+        const isVisible = dropdown.classList.contains('visible');
+        if (isVisible) {
+            dropdown.classList.remove('visible');
+            dropdown.classList.add('hidden');
+        } else {
+            dropdown.classList.remove('hidden');
+            dropdown.classList.add('visible');
+            positionDropdown(button, dropdown);
+        }
+    }
+
+    function positionDropdown(btn, dropdown) {
+        const btnRect = btn.getBoundingClientRect();
+        dropdown.style.top = `${btnRect.bottom + 8}px`;
+        
+        const dropdownWidth = 300;
+        let left = btnRect.left + (btnRect.width / 2) - (dropdownWidth / 2);
+        left = Math.max(10, Math.min(window.innerWidth - dropdownWidth - 10, left));
+        dropdown.style.left = `${left}px`;
+    }
+
+    winShortcutsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown(shortcutsDropdown, winShortcutsBtn);
+    });
+
+    winStreamsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown(streamsDropdown, winStreamsBtn);
+    });
+
+    // Handle Quick Demo Select
+    const demoButtons = document.querySelectorAll('.demo-select-btn');
     demoButtons.forEach(button => {
         button.addEventListener('click', () => {
             const videoUrl = button.getAttribute('data-url');
             loadVideoSource(videoUrl, false);
+            streamsDropdown.classList.remove('visible');
+            streamsDropdown.classList.add('hidden');
         });
     });
 
-    ejectBtn.addEventListener('click', ejectVideo);
+    // Close Dropdowns on outside click
+    window.addEventListener('click', (e) => {
+        if (!shortcutsDropdown.contains(e.target) && e.target !== winShortcutsBtn && !winShortcutsBtn.contains(e.target)) {
+            shortcutsDropdown.classList.remove('visible');
+            shortcutsDropdown.classList.add('hidden');
+        }
+        if (!streamsDropdown.contains(e.target) && e.target !== winStreamsBtn && !winStreamsBtn.contains(e.target)) {
+            streamsDropdown.classList.remove('visible');
+            streamsDropdown.classList.add('hidden');
+        }
+    });
+
+    // Close Dropdowns on window resize
+    window.addEventListener('resize', () => {
+        if (shortcutsDropdown.classList.contains('visible')) {
+            positionDropdown(winShortcutsBtn, shortcutsDropdown);
+        }
+        if (streamsDropdown.classList.contains('visible')) {
+            positionDropdown(winStreamsBtn, streamsDropdown);
+        }
+    });
 
     // ----------------------------------------------------
     // Core Playback Functions
@@ -201,14 +399,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function triggerSeekToast(seconds) {
-        // Clear existing toast animations
         clearTimeout(toastTimer);
         seekToast.classList.remove('active');
         
-        // Force reflow to restart transition
-        void seekToast.offsetWidth;
+        void seekToast.offsetWidth; // Force reflow
 
-        // Set direction details
         const isForward = seconds > 0;
         const toastIcon = seekToast.querySelector('.toast-icon');
         const toastText = seekToast.querySelector('.toast-text');
@@ -225,7 +420,6 @@ document.addEventListener('DOMContentLoaded', () => {
             toastIcon.style.color = '#f02fc2';
         }
 
-        // Display toast
         seekToast.classList.add('active');
 
         toastTimer = setTimeout(() => {
@@ -260,7 +454,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Seek Timeline Scrubbing Setup
     function handleScrub(e) {
         if (!mainVideo.duration) return;
         const rect = timelineContainer.getBoundingClientRect();
@@ -280,7 +473,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     timelineContainer.addEventListener('mousemove', (e) => {
-        // Show hover preview
         const rect = timelineContainer.getBoundingClientRect();
         const position = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
         timelineHover.style.width = `${position * 100}%`;
@@ -294,7 +486,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isDraggingTimeline = false;
     });
 
-    // Touch events for mobile scrub support
     timelineContainer.addEventListener('touchstart', (e) => {
         isDraggingTimeline = true;
         handleScrub(e);
@@ -361,13 +552,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fullscreenBtn.addEventListener('click', toggleFullscreen);
     
-    // Double click video screen to toggle fullscreen
     mainVideo.addEventListener('dblclick', (e) => {
         e.preventDefault();
         toggleFullscreen();
     });
 
-    // Keep fullscreen button state aligned with ESC / system exiting fullscreen
     document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement) {
             updateIcon(fullscreenIcon, 'maximize');
@@ -380,10 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Keyboard Shortcuts
     // ----------------------------------------------------
     window.addEventListener('keydown', (e) => {
-        // If file input or sliders have focused and keys might interfere, prevent shortcut
         if (document.activeElement.tagName === 'INPUT' && document.activeElement.type !== 'range') return;
-        
-        // Active video is needed to trigger keyboard mappings
         if (videoWrapper.classList.contains('hidden')) return;
 
         switch (e.key.toLowerCase()) {
@@ -424,7 +610,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Reset idle timer on actions
     ['mousemove', 'mousedown', 'keydown', 'touchstart'].forEach(eventName => {
         videoWrapper.addEventListener(eventName, resetIdleTimer);
     });
@@ -436,15 +621,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ----------------------------------------------------
-    // Tauri Desktop Shell Integrations
-    // ----------------------------------------------------
-    // ----------------------------------------------------
-    // Tauri Desktop Shell Integrations
+    // Tauri Desktop Titlebar Actions
     // ----------------------------------------------------
     if (isTauri) {
         const appWindow = window.__TAURI__.window.getCurrentWindow();
         
-        // Custom Titlebar Operations
         document.getElementById('winMinimizeBtn').addEventListener('click', () => {
             appWindow.minimize();
         });
@@ -465,7 +646,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     } else {
-        // In browser mode, hide desktop-only controls but keep the custom titlebar and info button
         const winMinimizeBtn = document.getElementById('winMinimizeBtn');
         const winMaximizeBtn = document.getElementById('winMaximizeBtn');
         const winCloseBtn = document.getElementById('winCloseBtn');
@@ -485,32 +665,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const tourSkipBtn = document.getElementById('tourSkipBtn');
     const tourPrevBtn = document.getElementById('tourPrevBtn');
     const tourNextBtn = document.getElementById('tourNextBtn');
-    const winInfoBtn = document.getElementById('winInfoBtn');
 
     const tourSteps = [
         {
-            target: '#sidebarHeader',
+            target: '#storagePrompt',
             title: 'Welcome to AeroPlayer!',
-            text: 'Experience your offline & online videos in a highly polished, glassmorphic layout. Let\'s show you around!',
+            text: 'Allow storage access to automatically catalog all videos in your system, or select single files manually.',
             placement: 'bottom'
         },
         {
-            target: '#playerCard',
-            title: 'Your Video Canvas',
-            text: 'Drag & drop any video file directly here, or click to browse. The UI dynamically accommodates and optimizes the viewport.',
-            placement: 'right'
+            target: '#winPlaylistToggleBtn',
+            title: 'Toggle Video Catalog',
+            text: 'Click here to show or hide your collapsible video catalog drawer anytime.',
+            placement: 'bottom'
         },
         {
-            target: '#sidebarDemoCard',
+            target: '#winStreamsBtn',
             title: 'Quick Demo Streams',
-            text: 'Don\'t have a video file ready? Instantly play high-quality cloud media streams with a single click.',
-            placement: 'left'
+            text: 'Play high-quality demo movies instantly from our cloud servers.',
+            placement: 'bottom'
         },
         {
-            target: '#sidebarShortcutsCard',
+            target: '#winShortcutsBtn',
             title: 'Keyboard Shortcuts',
-            text: 'Control playback like a pro! Use Space to play/pause, Left/Right arrows to skip, M to mute, and F for full screen.',
-            placement: 'left'
+            text: 'Control the player with rapid hotkeys like Space, Left/Right arrows, M, and F.',
+            placement: 'bottom'
         }
     ];
 
@@ -519,7 +698,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function initTour() {
         if (!tourOverlay || !tourTooltip) return;
 
-        // Build dots
         tourDotsContainer.innerHTML = '';
         tourSteps.forEach((_, idx) => {
             const dot = document.createElement('div');
@@ -528,7 +706,6 @@ document.addEventListener('DOMContentLoaded', () => {
             tourDotsContainer.appendChild(dot);
         });
 
-        // Event listeners
         tourSkipBtn.addEventListener('click', endTour);
         tourPrevBtn.addEventListener('click', () => navigateTour(-1));
         tourNextBtn.addEventListener('click', () => navigateTour(1));
@@ -536,9 +713,7 @@ document.addEventListener('DOMContentLoaded', () => {
             winInfoBtn.addEventListener('click', startTour);
         }
 
-        // Auto-start if not completed before
         if (localStorage.getItem('aeroplayer_tour_completed') !== 'true') {
-            // Give a tiny delay for everything to settle/render
             setTimeout(startTour, 1000);
         }
     }
@@ -558,7 +733,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tourTooltip.classList.remove('visible');
         tourTooltip.classList.add('hidden');
         
-        // Remove highlight from any active element
         document.querySelectorAll('.tour-highlighted').forEach(el => {
             el.classList.remove('tour-highlighted');
         });
@@ -580,16 +754,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const step = tourSteps[stepIndex];
         const targetElement = document.querySelector(step.target);
 
-        // Remove active highlights
         document.querySelectorAll('.tour-highlighted').forEach(el => {
             el.classList.remove('tour-highlighted');
         });
 
-        // Update Text
         tourTitle.textContent = step.title;
         tourText.textContent = step.text;
 
-        // Update Dots
         const dots = tourDotsContainer.querySelectorAll('.tour-dot');
         dots.forEach((dot, idx) => {
             if (idx === stepIndex) {
@@ -599,7 +770,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Update Buttons
         if (stepIndex === 0) {
             tourPrevBtn.style.display = 'none';
         } else {
@@ -618,14 +788,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (targetElement) {
             targetElement.classList.add('tour-highlighted');
-            
-            // Scroll to view if necessary
             targetElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-            // Position tooltip
             positionTooltip(targetElement, step.placement);
         } else {
-            // Element not found (fallback to center)
             positionTooltipCenter();
         }
     }
@@ -633,7 +798,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function positionTooltip(target, placement) {
         const targetRect = target.getBoundingClientRect();
         
-        // Temporarily reveal tooltip transparently if not displayed to get accurate client rects
         const isHidden = tourTooltip.classList.contains('hidden');
         if (isHidden) {
             tourTooltip.classList.remove('hidden');
@@ -649,9 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let top = 0;
         let left = 0;
-        
-        // Calculate coordinates based on placement
-        const margin = 15; // gap between target and tooltip
+        const margin = 15;
         
         if (placement === 'bottom') {
             top = targetRect.bottom + margin;
@@ -667,7 +829,6 @@ document.addEventListener('DOMContentLoaded', () => {
             left = targetRect.right + margin;
         }
 
-        // Bound checking to ensure tooltip remains inside viewport
         const padding = 10;
         const maxLeft = window.innerWidth - tooltipRect.width - padding;
         const maxTop = window.innerHeight - tooltipRect.height - padding;
@@ -675,7 +836,6 @@ document.addEventListener('DOMContentLoaded', () => {
         left = Math.max(padding, Math.min(maxLeft, left));
         top = Math.max(padding, Math.min(maxTop, top));
 
-        // Update tooltip style
         tourTooltip.setAttribute('data-placement', placement);
         tourTooltip.style.top = `${top}px`;
         tourTooltip.style.left = `${left}px`;
@@ -691,7 +851,6 @@ document.addEventListener('DOMContentLoaded', () => {
         tourTooltip.style.left = `${left}px`;
     }
 
-    // Reposition tooltip on window resize
     window.addEventListener('resize', () => {
         if (tourTooltip.classList.contains('visible') && !tourTooltip.classList.contains('hidden')) {
             const step = tourSteps[currentTourStep];
@@ -704,6 +863,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initialize the tour
     initTour();
 });
