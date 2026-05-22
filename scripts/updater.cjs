@@ -24,14 +24,21 @@ async function main() {
     }
 
     const files = fs.readdirSync(bundleDir);
-    const zipFile = files.find(f => f.endsWith('.zip') && !f.endsWith('.sig'));
-    const sigFile = files.find(f => f.endsWith('.sig') || f.endsWith('.zip.sig'));
+    console.log("All files in bundle directory:", files);
 
-    if (!zipFile || !sigFile) {
-      throw new Error(`Could not find updater zip or signature file in: ${bundleDir}`);
+    // Find the signature file (ends with .sig)
+    const sigFile = files.find(f => f.endsWith('.sig'));
+    if (!sigFile) {
+      throw new Error(`Could not find any signature (.sig) file in: ${bundleDir}`);
     }
 
-    console.log(`Found update bundle: ${zipFile}`);
+    // The update payload file is the signature file name without the .sig extension
+    const payloadFile = sigFile.slice(0, -4);
+    if (!files.includes(payloadFile)) {
+      throw new Error(`Could not find matching update payload file "${payloadFile}" for signature "${sigFile}"`);
+    }
+
+    console.log(`Found update payload: ${payloadFile}`);
     console.log(`Found signature file: ${sigFile}`);
 
     // 3. Read signature content
@@ -40,7 +47,7 @@ async function main() {
 
     // 4. Construct download URL pointing to the GitHub Release
     const repoName = 'muhammadsherazsandila/aeroplayer-desktop';
-    const downloadUrl = `https://github.com/${repoName}/releases/download/v${version}/${zipFile}`;
+    const downloadUrl = `https://github.com/${repoName}/releases/download/v${version}/${payloadFile}`;
 
     // 5. Build/Update updater.json structure
     const updaterJsonPath = path.join(__dirname, '..', 'updater.json');
