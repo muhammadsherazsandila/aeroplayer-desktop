@@ -80,7 +80,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate Auto-Updater Metadata
-        run: node scripts/updater.js
+        run: node scripts/updater.cjs
 
       - name: Commit and Push updater.json Metadata
         shell: bash
