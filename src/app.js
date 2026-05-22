@@ -648,15 +648,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isTauri) {
         const appWindow = window.__TAURI__.window.getCurrentWindow();
         
-        // Native Fullscreen on First Launch
-        if (localStorage.getItem('aeroplayer_first_launch_done') !== 'true') {
-            appWindow.setFullscreen(true).then(() => {
-                localStorage.setItem('aeroplayer_first_launch_done', 'true');
-            }).catch(err => {
-                console.error("Failed to make window fullscreen on first launch:", err);
-            });
-        }
-
         document.getElementById('winMinimizeBtn').addEventListener('click', () => {
             appWindow.minimize();
         });
